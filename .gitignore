@@ -1,3 +1,32 @@
-*md
+# Entorno virtual
 */venv/*
+venv/
+
+# Variables de entorno (NUNCA commitear secrets)
 .env
+*/report/*
+# Archivos de reporte generados
+*.md
+!README.md
+!AGENTS.md
+!docs/*.md
+
+# Configuración MCP
+.mcp.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+skills-lock.json
