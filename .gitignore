@@ -30,7 +30,3 @@ build/
 *.swp
 *.swo
 skills-lock.json
-
-# Gentle AI / OpenCode (configuración local)
-.config/
-.atl/
