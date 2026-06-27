@@ -4,8 +4,10 @@ import sys
 from dotenv import load_dotenv
 from internal.domain.ports import OSINTProvider, ReportRepository, IAProvider
 from internal.infra.exceptions import AdapterError
+from internal.infra.leakcheck import LeakCheckOSINT
 from internal.container import create_default_container
 from internal.usecases.scan import ScanUseCaseSimple
+from internal.usecases.email import EmailInvestigationUseCase
 
 
 def main():
@@ -16,8 +18,13 @@ def main():
     )
 
     parser.add_argument("-d", "--domain",
-                        required=True,
+                        default=None,
                         help="Target a escanear"
+                        )
+
+    parser.add_argument("-e", "--email",
+                        default=None,
+                        help="Email a investigar via LeakCheck.io"
                         )
 
     parser.add_argument("-o", "--output",
@@ -38,13 +45,15 @@ def main():
 
     args = parser.parse_args()
 
+    # Post-parse validation: at least one target required
+    if not args.email and not args.domain:
+        parser.error("Se requiere al menos --email/-e o --domain/-d")
+
     censys_api_token = os.getenv("CENSYS_API_TOKEN", "").strip() or None
     openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "").strip() or None
-    emailrep_api_key = os.getenv("EMAILREP_API_KEY", "").strip() or None
 
     container = create_default_container(
         censys_api_token=censys_api_token,
-        emailrep_api_key=emailrep_api_key,
         openrouter_api_key=openrouter_api_key
     )
 
@@ -55,10 +64,7 @@ def main():
     if censys_api_token:
         try:
             censys_provider = container.resolve("CensysOSINT")
-            print(f"[*] Verificando conexión con Censys...")
-            if censys_provider.verify_connection():
-                print(f"[+] Censys: habilitado y conectado")
-            else:
+            if not censys_provider.verify_connection():
                 print(f"[!] Censys: token inválido o sin permisos")
                 censys_provider = None
         except ValueError as e:
@@ -75,28 +81,49 @@ def main():
         except ValueError:
             print("[!] OpenRouter API key configurada pero no se pudo cargar el provider")
 
-    use_case = ScanUseCaseSimple(
-        osint_provider=osint_provider,
-        report_service=report_service,
-        censys_provider=censys_provider,
-        ia_provider=ia_provider
-    )
+    # --- Email investigation (runs first if requested) ---
+    if args.email:
+        email_uc = EmailInvestigationUseCase(
+            email_provider=container.resolve(LeakCheckOSINT),
+            report_service=report_service,
+        )
+        try:
+            print(f"[+] Investigando email: {args.email}")
+            email_result = email_uc.execute(args.email, args.output)
+            print(f"[+] Reporte email guardado en: {email_result.full_path}")
+        except ValueError as e:
+            print(f"\n[!] {e}")
+            sys.exit(1)
+        except AdapterError as e:
+            print(f"\n[!] Error al investigar email: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"\n[!] Error inesperado al investigar email: {e}")
+            sys.exit(1)
 
-    try:
-        print(f"[+] Iniciando escaneo en: {args.domain}")
-        print(f"[*] Usando proveedor: {osint_provider.__class__.__name__}")
+    # --- Domain scan (runs second if requested) ---
+    if args.domain:
+        use_case = ScanUseCaseSimple(
+            osint_provider=osint_provider,
+            report_service=report_service,
+            censys_provider=censys_provider,
+            ia_provider=ia_provider,
+        )
+        try:
+            print(f"[+] Iniciando escaneo en: {args.domain}")
+            print(f"[*] Usando proveedor: {osint_provider.__class__.__name__}")
 
-        result = use_case.execute(args.domain, args.output, limit=args.limit, analyze=args.analyze)
+            result = use_case.execute(args.domain, args.output, limit=args.limit, analyze=args.analyze)
 
-        print(f"[+] Escaneo completado")
-        print(f"[*] Reporte guardado en: {result.full_path}")
-        print("[!] Recuerda que esto es solo la recoleccion de informacion, no el analisis")
-    except AdapterError as e:
-        print(f"\n[!] {e}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"\n[!] Error inesperado al escanear el dominio: {e}")
-        sys.exit(1)
+            print(f"[+] Escaneo completado")
+            print(f"[*] Reporte guardado en: {result.full_path}")
+            print("[!] Recuerda que esto es solo la recoleccion de informacion, no el analisis")
+        except AdapterError as e:
+            print(f"\n[!] {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"\n[!] Error inesperado al escanear el dominio: {e}")
+            sys.exit(1)
 
 
 if __name__ == "__main__":

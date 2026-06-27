@@ -6,7 +6,7 @@ from internal.domain.ports import OSINTProvider, ReportRepository, IAProvider
 from internal.infra.hackertarget import HackerTargetOSINT
 from internal.infra.markdown import MarkdownReportRepository
 from internal.infra.censys import CensysOSINT
-from internal.infra.emailrep import EmailRepOSINT
+from internal.infra.leakcheck import LeakCheckOSINT
 from internal.infra.openrouter import OpenRouterIAProvider
 
 
@@ -49,7 +49,6 @@ class Container:
 
 def create_default_container(
     censys_api_token: str = None,
-    emailrep_api_key: str = None,
     openrouter_api_key: str = None
 ) -> Container:
     """
@@ -69,8 +68,8 @@ def create_default_container(
     if censys_api_token:
         container.register_instance("CensysOSINT", CensysOSINT(censys_api_token))
 
-    # EmailRep - funciona sin API key (tier gratuito)
-    container.register_instance(EmailRepOSINT, EmailRepOSINT(emailrep_api_key))
+    # LeakCheck - API pública, no requiere API key
+    container.register_instance(LeakCheckOSINT, LeakCheckOSINT())
 
     # OpenRouter IA - requiere API key
     if openrouter_api_key:

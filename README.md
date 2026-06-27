@@ -13,7 +13,7 @@
 ## ✨ Características
 
 - 🔎 **Reconocimiento pasivo** sin interactuar directamente con el target
-- 📡 **Múltiples fuentes**: HackerTarget, Censys, EmailRep, RDAP/WHOIS
+- 📡 **Múltiples fuentes**: HackerTarget, Censys, LeakCheck, RDAP/WHOIS
 - 🧠 **Análisis con IA** mediante OpenRouter (router gratuito disponible)
 - 📄 **Reportes en Markdown** bien estructurados y fáciles de leer
 - 🏗️ **Clean Architecture** con inyección de dependencias
@@ -65,15 +65,11 @@ CENSYS_API_TOKEN=censys_tu_token_aqui
 
 # OpenRouter - Análisis con IA (router gratuito)
 OPENROUTER_API_KEY=sk-or-v1-tu_key_aqui
-
-# EmailRep - Reputación de emails (opcional)
-EMAILREP_API_KEY=
 ```
 
 > 🔑 Obtén tus API keys en:
 > - **Censys**: https://accounts.censys.io/settings/personal-access-tokens
 > - **OpenRouter**: https://openrouter.ai/keys
-> - **EmailRep**: https://emailrep.io/
 
 ---
 
@@ -190,18 +186,21 @@ python main.py -d render.com -o ./reports --analyze
 
 ---
 
-### Escenario 4: Análisis de email sospechoso
+### Escenario 4: Investigación de email comprometido
 
-Para investigar la reputación de una dirección de email, se puede usar EmailRep (aún no integrado en el flujo principal del CLI, pero disponible como adaptador).
+Para investigar si una dirección de email ha sido comprometida en brechas de seguridad, usa LeakCheck (API pública, no requiere API key).
 
-```python
-from internal.container import create_default_container
-from internal.infra.emailrep import EmailRepOSINT
-
-provider = EmailRepOSINT(api_key="tu_emailrep_key")
-resultado = provider.fetch("sospechoso@dominio.com")
-print(resultado)
+```bash
+python main.py -e sospechoso@dominio.com -o ./reports
 ```
+
+**Salida esperada:**
+```text
+[+] Investigando email: sospechoso@dominio.com
+[+] Reporte email guardado en: ./reports/report_sospechoso@dominio.com_leakcheck.md
+```
+
+El reporte incluirá las brechas donde el email fue encontrado, con fechas y campos expuestos.
 
 ---
 
